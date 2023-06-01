@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-cn1$wt_62=(aazgos7hj!t7rw!ku-_s0hizy#-fe$#vp2800a(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -121,6 +121,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
@@ -130,7 +131,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "Base.User"
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=25),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
   
 
@@ -165,17 +166,21 @@ EMAIL_HOST_PASSWORD = "3f08c8ffb009a4"
 EMAIL_USE_TLS = True
 
 
-CORS_ALLOWED_ORIGINS = [
+# CORS_ALLOWED_ORIGINS = [
 
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+# ]
+# CORS_ALLOWED_ORIGINS = ["http://192.168.0.28"]
+CORS_ALLOW_ALL_ORIGINS = True
 
 REST_FRAMEWORK = {
     
     'DEFAULT_AUTHENTICATION_CLASSES': (
       
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     )
     
 }

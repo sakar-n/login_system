@@ -81,7 +81,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             data = {
                 "subject":"Reset Your Password",
                 "body": body,
-                "to_email" :user.email
+                "to_email" :user,
             }
             Util.send_email(data)
 

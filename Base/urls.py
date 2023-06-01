@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from .  import views
-from Base.views import UserRegistrationView, UserLoginView, UserProfileView ,UserChangePasswordView, SendPasswordResetEmailView, UserPasswordResetView
+from Base.views import UserRegistrationView, UserLoginView ,UserProfileView ,UserChangePasswordView, SendPasswordResetEmailView, UserPasswordResetView
 from django.http import JsonResponse
 from rest_framework.response import Response
 
@@ -17,7 +17,6 @@ urlpatterns = [
                path("changepassword/",UserChangePasswordView.as_view(), name="changepassword"),
                path("send-reset-password-email/",SendPasswordResetEmailView.as_view(), name="send-reset-password-email"),
                path("reset-password/<uid>/<token>/",UserPasswordResetView.as_view(), name="reset-password"),
-
                path("profile/",UserProfileView.as_view(), name="profile"),
                path("task-list/", views.taskList, name="task-list"),
                path("task-detail/<str:pk>/", views.taskDetail, name="task-detail"),

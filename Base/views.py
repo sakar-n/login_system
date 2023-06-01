@@ -2,15 +2,20 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes 
 from rest_framework.views import APIView
 from Base.serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, UserChangePasswordSerializer, SendPasswordResetEmailSerializer, UserPasswordResetSerializer
 from .serializers import TaskSerializer
 from rest_framework import status
 from Base.renderers import UserRenderer
+from django.contrib.auth import login, logout
 from .models import Task
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated
+from .models import User
+from rest_framework.authentication import BasicAuthentication
+from .custompermission import MyPermission
+
 
 
 def get_tokens_for_user(user):
@@ -92,9 +97,11 @@ class UserPasswordResetView(APIView):
     renderer_classes = [UserRenderer]
     def post(self, request, uid, token, format=None):
         serializer = UserPasswordResetSerializer(data=request.data, context ={"uid":uid, "token":token})
+        print(token)
         if serializer.is_valid(raise_exception=True):
             return Response({"msg": "password reset successfully"},status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
 @api_view(["GET"])
 def apiOverview(request):
@@ -109,6 +116,7 @@ def apiOverview(request):
 
 
 @api_view(["GET"])
+
 def taskList(request):
     tasks = Task.objects.all()
     serializer = TaskSerializer(tasks, many=True)
@@ -118,39 +126,56 @@ def taskList(request):
 @api_view(["GET"])
 def taskDetail(request, pk):
     tasks = Task.objects.get(id=pk)
-    serializer = TaskSerializer(tasks, many=True)
+    
+ 
+    
+    serializer = TaskSerializer(tasks)
     return Response(serializer.data)
+
 
 
 @api_view(["POST"])
-def taskCreate(request):
-    serializer = TaskSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save()
-    return Response(serializer.data)
+@permission_classes([IsAuthenticated])
 
-
-@api_view(["POST"])
 def taskCreate(request):
+    
     serializer = TaskSerializer(data=request.data)
+    serializer.is_valid()
+    if request.user == serializer.validated_data.get("user"):
+            serializer.save(user=request.user)
     if serializer.is_valid():
-        serializer.save()
-    return Response(serializer.data)
+            serializer.save(user=request.user)
+            return Response(serializer.data)
+    return Response(serializer.errors)
+
 
 
 @api_view(["POST"])
 def taskUpdate(request, pk):
     task = Task.objects.get(id=pk)
+
+    if request.user != task.user:
+        return Response("You are not allowed to update this task.", status=status.HTTP_403_FORBIDDEN)
     serializer = TaskSerializer(instance=task, data=request.data)
 
-    if serializer.is_valid():
-        serializer.save()
+
+    
+
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
     return Response(serializer.data)
+    
+
 
 
 @api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+
 def taskDelete(request, pk):
     task = Task.objects.get(id=pk)
+   
+    if request.user != task.user:
+        return Response("You are not allowed to delete this task.", status=status.HTTP_403_FORBIDDEN)
     task.delete()
-
+    
     return Response("item deleted")
