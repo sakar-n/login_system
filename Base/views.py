@@ -6,16 +6,19 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.views import APIView
 from Base.serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, UserChangePasswordSerializer, SendPasswordResetEmailSerializer, UserPasswordResetSerializer
 from .serializers import TaskSerializer
-from rest_framework import status
+from rest_framework import status, filters
 from Base.renderers import UserRenderer
 from django.contrib.auth import login, logout
 from .models import Task
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated
-from .models import User
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from .models import User,Task
 from rest_framework.authentication import BasicAuthentication
-from .custompermission import MyPermission
-
+from rest_framework import generics
+from Base.pagination import LargeResultsSetPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 
 
 def get_tokens_for_user(user):
@@ -26,11 +29,10 @@ def get_tokens_for_user(user):
         "access": str(refresh.access_token),
     }
 
-
 class UserRegistrationView(APIView):
     renderer_classes = [UserRenderer]
 
-    def post(self, request, format=None):
+    def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
@@ -46,7 +48,7 @@ class UserRegistrationView(APIView):
 class UserLoginView(APIView):
     renderer_classes = [UserRenderer]
 
-    def post(self, request, format=None):
+    def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             email = serializer.data.get("email")
@@ -70,6 +72,7 @@ class UserLoginView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserProfileView(APIView):
+    # authentication_classes = [SessionAuthentication, BasicAuthentication]
     renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
@@ -102,6 +105,14 @@ class UserPasswordResetView(APIView):
             return Response({"msg": "password reset successfully"},status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+class SearchAPIView(generics.ListAPIView):
+    
+    filter_backends = [filters.SearchFilter]
+    queryset = Task.objects.all()
+    serializer_class = TaskSerializer
+    search_fields = ['title']
+
+   
 
 @api_view(["GET"])
 def apiOverview(request):
@@ -115,20 +126,23 @@ def apiOverview(request):
     return Response(api_urls)
 
 
+
+
 @api_view(["GET"])
 
 def taskList(request):
+    paginator = LargeResultsSetPagination()
     tasks = Task.objects.all()
-    serializer = TaskSerializer(tasks, many=True)
-    return Response(serializer.data)
+    paginated_tasks = paginator.paginate_queryset(tasks, request)
+    serializer = TaskSerializer(paginated_tasks, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(["GET"])
 def taskDetail(request, pk):
     tasks = Task.objects.get(id=pk)
     
- 
-    
+   
     serializer = TaskSerializer(tasks)
     return Response(serializer.data)
 
@@ -141,8 +155,11 @@ def taskCreate(request):
     
     serializer = TaskSerializer(data=request.data)
     serializer.is_valid()
+
+    
     if request.user == serializer.validated_data.get("user"):
             serializer.save(user=request.user)
+    
     if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data)
@@ -179,3 +196,7 @@ def taskDelete(request, pk):
     task.delete()
     
     return Response("item deleted")
+
+
+
+

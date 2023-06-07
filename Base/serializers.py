@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, generics
 from .models import Task, User
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
@@ -19,6 +19,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ["email", "name","password","password2",]
         extra_kwargs={
             "password":{"write_only":True}
+            
         }
 
 
@@ -71,6 +72,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
         email = attrs.get("email")
         if User.objects.filter(email=email).exists():
             user = User.objects.get(email = email)
+            print(user)
             uid = urlsafe_base64_encode(force_bytes(user.id))
             print("Encoded UID", uid)
             token = PasswordResetTokenGenerator().make_token(user)
@@ -117,5 +119,9 @@ class UserPasswordResetSerializer(serializers.Serializer):
         except DjangoUnicodeDecodeError as identifier:
             PasswordResetTokenGenerator().check_token(user, token)
             raise ValidationErr("Token is not Valid or Expired")
+        
+
+
+
         
    

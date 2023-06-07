@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from .  import views
-from Base.views import UserRegistrationView, UserLoginView ,UserProfileView ,UserChangePasswordView, SendPasswordResetEmailView, UserPasswordResetView
+from Base.views import UserRegistrationView, UserLoginView ,UserProfileView ,UserChangePasswordView, SendPasswordResetEmailView, UserPasswordResetView, SearchAPIView 
 from django.http import JsonResponse
 from rest_framework.response import Response
 
@@ -22,6 +22,7 @@ urlpatterns = [
                path("task-detail/<str:pk>/", views.taskDetail, name="task-detail"),
                path("task-create/", views.taskCreate, name="task-create"),
                path("task-update/<str:pk>/", views.taskUpdate, name="task-update"),
-               path("task-delete/<str:pk>/", views.taskDelete, name="task-delete"),     
+               path("task-delete/<str:pk>/", views.taskDelete, name="task-delete"), 
+               path("search/", SearchAPIView.as_view(), name="search"),  
 
 ]
