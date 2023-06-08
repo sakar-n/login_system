@@ -2,23 +2,23 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.contrib.auth import authenticate
 from rest_framework.response import Response
+
 from rest_framework.decorators import api_view, authentication_classes, permission_classes 
 from rest_framework.views import APIView
 from Base.serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer, UserChangePasswordSerializer, SendPasswordResetEmailSerializer, UserPasswordResetSerializer
 from .serializers import TaskSerializer
-from rest_framework import status, filters
+from rest_framework import status, filters, generics
 from Base.renderers import UserRenderer
 from django.contrib.auth import login, logout
 from .models import Task
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from .models import User,Task
-from rest_framework.authentication import BasicAuthentication
 from rest_framework import generics
 from Base.pagination import LargeResultsSetPagination
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+
 
 
 def get_tokens_for_user(user):
@@ -49,19 +49,20 @@ class UserLoginView(APIView):
     renderer_classes = [UserRenderer]
 
     def post(self, request):
-        serializer = UserLoginSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            email = serializer.data.get("email")
-            password = serializer.data.get("password")
-            user = authenticate(email=email, password=password)
-            if user is not None:
-                token = get_tokens_for_user(user)
+        try:
+            serializer = UserLoginSerializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                email = serializer.data.get("email")
+                password = serializer.data.get("password")
+                user = authenticate(email=email, password=password)
+                if user is not None:
+                    token = get_tokens_for_user(user)
 
-                return Response(
+                    return Response(
                     {"token": token, "msg": "Login Success"}, status=status.HTTP_200_OK
                 )
-            else:
-                return Response(
+                else:
+                    return Response(
                     {
                         "errors": {
                             "non_field_errors": ["email or password is not valid"]
@@ -69,10 +70,11 @@ class UserLoginView(APIView):
                     },
                     status=status.HTTP_404_NOT_FOUND,
                 )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': str(e)},status=status.HTTP_400_BAD_REQUEST)
 class UserProfileView(APIView):
-    # authentication_classes = [SessionAuthentication, BasicAuthentication]
+    
     renderer_classes = [UserRenderer]
     permission_classes = [IsAuthenticated]
     def get(self, request, format=None):
@@ -105,12 +107,14 @@ class UserPasswordResetView(APIView):
             return Response({"msg": "password reset successfully"},status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
 class SearchAPIView(generics.ListAPIView):
-    
-    filter_backends = [filters.SearchFilter]
+    paginator = LargeResultsSetPagination()
+    # filter_backends = [filters.SearchFilter]
+    filter_backends =[DjangoFilterBackend]
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
-    search_fields = ['title']
+    filterset_fields = ['title', 'completed']
 
    
 
@@ -122,6 +126,8 @@ def apiOverview(request):
         "Create": "/task-create/",
         "Update": "/task-update/<str:pk>/",
         "Delete": "/task-delete/<str:pk>/",
+        "All": "/alltasklist/",
+
     }
     return Response(api_urls)
 
@@ -129,10 +135,11 @@ def apiOverview(request):
 
 
 @api_view(["GET"])
-
+@permission_classes([IsAuthenticated])
 def taskList(request):
     paginator = LargeResultsSetPagination()
-    tasks = Task.objects.all()
+    tasks = Task.objects.filter(user=request.user)
+    print(tasks)
     paginated_tasks = paginator.paginate_queryset(tasks, request)
     serializer = TaskSerializer(paginated_tasks, many=True)
     return paginator.get_paginated_response(serializer.data)
@@ -152,36 +159,38 @@ def taskDetail(request, pk):
 @permission_classes([IsAuthenticated])
 
 def taskCreate(request):
-    
     serializer = TaskSerializer(data=request.data)
-    serializer.is_valid()
+    serializer.is_valid(raise_exception=True)
 
-    
-    if request.user == serializer.validated_data.get("user"):
-            serializer.save(user=request.user)
-    
-    if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data)
-    return Response(serializer.errors)
+    new_title = serializer.validated_data.get("title")
+    existing_task = Task.objects.filter(title=new_title, user=request.user)
+
+    if existing_task.exists():
+        return Response("Task already exists, please provide another title.", status=status.HTTP_403_FORBIDDEN)
+
+    serializer.save(user=request.user)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 
 @api_view(["POST"])
 def taskUpdate(request, pk):
-    task = Task.objects.get(id=pk)
+    try:
+        task = Task.objects.get(id=pk)
 
-    if request.user != task.user:
-        return Response("You are not allowed to update this task.", status=status.HTTP_403_FORBIDDEN)
-    serializer = TaskSerializer(instance=task, data=request.data)
+        if request.user != task.user:
+            return Response("You are not allowed to update this task.", status=status.HTTP_403_FORBIDDEN)
+        serializer = TaskSerializer(instance=task, data=request.data)
 
 
-    
+        
 
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
-    
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)},status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -196,6 +205,16 @@ def taskDelete(request, pk):
     task.delete()
     
     return Response("item deleted")
+
+@api_view(["GET"])
+def alltasklist(request):
+    paginator = LargeResultsSetPagination()
+    task = Task.objects.all()
+   
+    paginated_tasks = paginator.paginate_queryset(task, request)
+    serializer = TaskSerializer(paginated_tasks, many=True)
+    return paginator.get_paginated_response(serializer.data)
+
 
 
 

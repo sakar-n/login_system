@@ -23,6 +23,8 @@ urlpatterns = [
                path("task-create/", views.taskCreate, name="task-create"),
                path("task-update/<str:pk>/", views.taskUpdate, name="task-update"),
                path("task-delete/<str:pk>/", views.taskDelete, name="task-delete"), 
-               path("search/", SearchAPIView.as_view(), name="search"),  
+               path("search/", SearchAPIView.as_view(), name="search"),
+               path("alltasklist/", views.alltasklist, name="alltasklist"),
+
 
 ]

@@ -6,6 +6,7 @@ from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
 class Task(models.Model):
     title = models.CharField(max_length=200)
+    
     completed = models.BooleanField(default=False, blank=True)
     user = models.ForeignKey('Base.User',on_delete=models.CASCADE, default=None, null=True)
 
