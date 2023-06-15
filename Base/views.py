@@ -216,6 +216,9 @@ def alltasklist(request):
     return paginator.get_paginated_response(serializer.data)
 
 
-
-
+# @api_view(["GET"])
+# def alltasklist(request):
+#     task = Task.objects.all()
+#     serialized = TaskSerializer(task, many=True)
+#     return Response(serialized.data)
 

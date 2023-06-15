@@ -1,0 +1,16 @@
+@api view['GET']
+
+def taskview(request):
+ task = Task.objects.get(user=request.user)
+serializer = TaskSerializer(get.data)
+return response
+
+
+
+
+@api_view(["GET"])
+def alltasklist(request):
+task = Task.objects.all()
+    if serializer.is_valid():
+serializer = TaskSerializer(task, request)
+        return Response(serializer.data)
